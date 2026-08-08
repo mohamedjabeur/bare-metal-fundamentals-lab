@@ -8,11 +8,7 @@
 // Port: A
 // Pin: 5 (LD2 onboard LED)
 
-// ============================================================
-// DIFFERENCE 1: Bus connection
-// STM32F103: GPIO on APB2 bus
-// STM32F446: GPIO on AHB1 bus (faster clock = faster GPIO)
-// ============================================================
+
 #define PERIPH_BASE             (0x40000000UL)
 #define AHB1PERIPH_OFFSET       (0x00020000UL)
 #define AHB1PERIPH_BASE         (PERIPH_BASE + AHB1PERIPH_OFFSET) // 0x4002 0000
@@ -23,22 +19,13 @@
 #define RCC_OFFSET              (0x00003800UL)
 #define RCC_BASE                (AHB1PERIPH_BASE + RCC_OFFSET)    // 0x4002 3800
 
-// ============================================================
-// DIFFERENCE 2: Clock enable register & bit
-// STM32F103: RCC_APB2ENR, bit 2 (GPIOAEN)
-// STM32F446: RCC_AHB1ENR, bit 0 (GPIOAEN)
-// ============================================================
+
 #define GPIOA_EN                (1U<<0)
 
 #define PIN5                    (1U<<5)
 #define LED_PIN                 PIN5
 
-// ============================================================
-// DIFFERENCE 3: GPIO Register Structure
-// STM32F103: CRL (config low) + CRH (config high) for pin mode
-// STM32F446: MODER (mode register) — 2 bits per pin:
-//   00 = Input, 01 = Output, 10 = Alternate Function, 11 = Analog
-// ============================================================
+
 typedef struct {
 	volatile uint32_t MODER;    // 0x00 - Mode register
 	volatile uint32_t OTYPER;   // 0x04 - Output type
@@ -51,11 +38,7 @@ typedef struct {
 	volatile uint32_t AFR[2];   // 0x20-0x24 - Alternate function
 } GPIO_TypeDef;
 
-// ============================================================
-// DIFFERENCE 4: RCC Register Structure
-// STM32F103: Uses APB2ENR to enable GPIO clock
-// STM32F446: Uses AHB1ENR to enable GPIO clock
-// ============================================================
+
 typedef struct {
 	volatile uint32_t CR;           // 0x00
 	volatile uint32_t PLLCFGR;      // 0x04
