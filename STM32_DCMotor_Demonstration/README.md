@@ -50,6 +50,26 @@ u8g2 is essential here because it abstracts away two very complex subsystems tha
 
 By integrating u8g2_csrc and implementing only a thin hardware interface layer (the SPI driver functions this project provides), the application layer can focus on *what* to display — motor speed and temperature — instead of *how* to physically address individual pixels. This is a good illustration of proper module encapsulation: the hardware application layer (`display.c`) stays clean and focused, while a well-tested third-party library handles the low-level complexity.
 
+## Why SPI (and not USART or I2C) for the Display?
+
+The OLED display communicates with the MCU over **SPI**, rather than USART or I2C. Each protocol was considered against what the display actually needs: speed, wiring simplicity, and reliability.
+
+**SPI (chosen):**
+- **Higher throughput**: SPI is a synchronous, full-duplex protocol clocked by the master (SPI3_SCK here), typically capable of several MHz to tens of MHz. A 128x64 OLED redraw pushes a meaningful amount of pixel data every refresh cycle, so a faster bus directly translates into faster, smoother screen updates.
+- **Simple, predictable protocol**: no addressing scheme, no clock-stretching, no arbitration — just a clock, data line(s), and a chip-select. This made it easier to implement a minimal blocking driver (`spi.c`) directly at the register level, matching the project's bare-metal approach.
+- **Point-to-point suits this use case**: this project only drives a single display, so SPI's need for a dedicated CS line per device isn't a real drawback here — it would only become a limitation with many SPI peripherals sharing the bus.
+
+**Why not I2C:**
+- I2C is significantly slower than SPI (typically 100 kHz–400 kHz standard/fast mode, up to ~1 MHz in fast mode plus) — noticeably slower for a full-frame redraw than SPI's multi-MHz clock, which matters when the display is redrawn periodically via a timer interrupt.
+- I2C requires open-drain lines with pull-up resistors and involves addressing and ACK/NACK handling, adding protocol overhead that isn't needed when there's only one fixed peripheral to talk to.
+- The upside of I2C — sharing two wires among many devices — isn't useful here, since the display is the only device on this bus.
+
+**Why not USART:**
+- USART (asynchronous serial) isn't designed for this kind of peripheral communication in the first place — it doesn't share the SSD1306's SPI/I2C-based communication interface at all. Using it would have meant either a display with a USART/UART interface (uncommon for small OLEDs) or an additional protocol-conversion layer, adding complexity for no benefit.
+- USART is asynchronous and has no shared clock line, which makes it inherently slower and less deterministic for high-throughput, timing-sensitive transfers like a full framebuffer write — exactly what this project doesn't want, since display redraws are already time-sensitive enough to require deferring them out of the ISR.
+
+**In short:** SPI was the right choice because it offered the throughput needed for responsive display updates and a wiring/timing model that matched a single-peripheral, register-level, interrupt-driven design — without the speed penalty of I2C or the architectural mismatch of USART.
+
 ## Hardware Architecture
 
 ### Components
